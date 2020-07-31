@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Smart Display</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">Smart Display</string>
+    <string name="nav_header_subtitle"></string>
+    <string name="nav_header_desc">Navigation header</string>
+    <string name="action_fullscreen">Fullscreen</string>
+
+    <string name="menu_display">Display</string>
+    <string name="menu_logs">Logs</string>
+    <string name="menu_settings">Settings</string>
+</resources>
