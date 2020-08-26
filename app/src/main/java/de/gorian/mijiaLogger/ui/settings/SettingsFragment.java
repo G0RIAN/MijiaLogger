@@ -1,4 +1,4 @@
-package de.gorian.smartdisplay.ui.logging;
+package de.gorian.mijiaLogger.ui.settings;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -12,19 +12,19 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 
-import de.gorian.smartdisplay.R;
+import de.gorian.mijiaLogger.R;
 
-public class LoggingFragment extends Fragment {
+public class SettingsFragment extends Fragment {
 
-    private LoggingViewModel loggingViewModel;
+    private SettingsViewModel settingsViewModel;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        loggingViewModel =
-                ViewModelProviders.of(this).get(LoggingViewModel.class);
-        View root = inflater.inflate(R.layout.fragment_logs, container, false);
-        final TextView textView = root.findViewById(R.id.text_gallery);
-        loggingViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
+        settingsViewModel =
+                ViewModelProviders.of(this).get(SettingsViewModel.class);
+        View root = inflater.inflate(R.layout.fragment_settings, container, false);
+        final TextView textView = root.findViewById(R.id.text_settings);
+        settingsViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
                 textView.setText(s);

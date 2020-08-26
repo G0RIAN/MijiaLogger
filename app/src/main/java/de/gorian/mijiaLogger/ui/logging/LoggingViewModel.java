@@ -1,16 +1,16 @@
-package de.gorian.smartdisplay.ui.display;
+package de.gorian.mijiaLogger.ui.logging;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-public class DisplayViewModel extends ViewModel {
+public class LoggingViewModel extends ViewModel {
 
     private MutableLiveData<String> mText;
 
-    public DisplayViewModel() {
+    public LoggingViewModel() {
         mText = new MutableLiveData<>();
-        mText.setValue("This is the display.");
+        mText.setValue("This is the log fragment.");
     }
 
     public LiveData<String> getText() {

@@ -1,4 +1,4 @@
-package de.gorian.smartdisplay.ui.settings;
+package de.gorian.mijiaLogger.ui.settings;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;

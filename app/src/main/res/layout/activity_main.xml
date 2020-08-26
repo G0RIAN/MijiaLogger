@@ -21,5 +21,8 @@
         app:headerLayout="@layout/nav_header_main"
         app:itemIconTint="@android:color/black"
         app:itemTextColor="@android:color/black"
-        app:menu="@menu/activity_main_drawer" />
+        app:menu="@menu/activity_main_drawer">
+
+    </com.google.android.material.navigation.NavigationView>
+
 </androidx.drawerlayout.widget.DrawerLayout>
