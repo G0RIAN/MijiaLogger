@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/nav_sensors">
+
+    <fragment
+        android:id="@+id/nav_sensors"
+        android:name="de.gorian.sensorreader.ui.sensors.SensorsFragment"
+        android:label="@string/menu_sensors"
+        tools:layout="@layout/fragment_sensors" />
+
+    <fragment
+        android:id="@+id/nav_logging"
+        android:name="de.gorian.sensorreader.ui.logging.LoggingFragment"
+        android:label="@string/menu_logs"
+        tools:layout="@layout/fragment_logging" />
+
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="de.gorian.sensorreader.ui.settings.SettingsFragment"
+        android:label="@string/menu_settings"
+        tools:layout="@layout/fragment_settings" />
+</navigation>
