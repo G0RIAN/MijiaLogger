@@ -5,6 +5,9 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorPrimaryDark"
+    android:fitsSystemWindows="true"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:openDrawer="start">
 
     <include
@@ -17,12 +20,12 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
+        android:background="@color/colorPrimaryDark"
+        android:backgroundTint="@color/colorPrimaryDark"
         android:fitsSystemWindows="true"
+        android:foregroundTint="@color/colorPrimary"
         app:headerLayout="@layout/nav_header_main"
-        app:itemIconTint="@android:color/black"
-        app:itemTextColor="@android:color/black"
-        app:menu="@menu/activity_main_drawer">
-
-    </com.google.android.material.navigation.NavigationView>
-
+        app:itemIconTint="@color/colorPrimary"
+        app:itemTextColor="@color/colorTextDark"
+        app:menu="@menu/activity_main_drawer" />
 </androidx.drawerlayout.widget.DrawerLayout>

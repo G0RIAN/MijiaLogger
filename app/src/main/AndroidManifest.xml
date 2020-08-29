@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="de.gorian.mijiaLogger">
+    package="de.gorian.sensorreader">
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -11,16 +11,15 @@
         android:required="true" />
 
     <application
-        android:allowBackup="@xml/my_backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:roundIcon="@drawable/ic_launcher"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.MaterialComponents">
         <activity
-            android:name="de.gorian.mijiaLogger.MainActivity"
+            android:name=".MainActivity"
             android:label="@string/app_name"
-            android:launchMode="singleInstance"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -28,6 +27,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".BluetoothLeService"
+            android:exported="false" />
     </application>
 
 </manifest>

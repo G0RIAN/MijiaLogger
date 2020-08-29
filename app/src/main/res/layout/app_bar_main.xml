@@ -6,22 +6,41 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F44336"
-        android:theme="@style/AppTheme.AppBarOverlay">
+        android:orientation="vertical">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/menu"
-            app:popupTheme="@style/AppTheme.PopupOverlay" />
+            android:layout_height="wrap_content"
+            android:theme="@style/Theme.MaterialComponents">
 
-    </com.google.android.material.appbar.AppBarLayout>
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="@color/colorAccent"
+                app:popupTheme="@style/Widget.MaterialComponents.Toolbar.Primary"
+                app:titleTextColor="@color/colorTextDark" />
 
-    <include layout="@layout/content_main" />
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <include
+            layout="@layout/content_main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/fab_margin"
+        app:backgroundTint="@color/colorAccent"
+        app:rippleColor="@color/colorPrimaryDark"
+        app:srcCompat="@drawable/ic_bluetooth_search" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

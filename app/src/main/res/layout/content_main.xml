@@ -4,12 +4,27 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_below="@+id/appBarLayout_1"
+    android:layout_marginTop="?android:attr/actionBarSize"
+    android:backgroundTint="@color/colorPrimaryDark"
+    android:foregroundTint="@color/colorPrimaryDark"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/app_bar_main">
 
     <FrameLayout
-        android:id="@+id/frame"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <fragment
+            android:id="@+id/nav_host_fragment"
+            android:name="androidx.navigation.fragment.NavHostFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:backgroundTint="@color/colorPrimaryDark"
+            app:defaultNavHost="true"
+            app:navGraph="@navigation/mobile_navigation" />
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

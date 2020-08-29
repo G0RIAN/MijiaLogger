@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name = "Mijia Logger"
+rootProject.name = "Sensor Reader"

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#EF5350</color>
-    <color name="colorPrimaryDark">@android:color/secondary_text_light</color>
-    <color name="colorAccent">#FFA726</color>
+    <color name="colorPrimary">#FFFFFFFF</color>
+    <color name="colorPrimaryDark">#FF323232</color>
+    <color name="colorTextDark">#FFFFFFFF</color>
+    <color name="colorText">#FF000000</color>
+    <color name="colorAccent">#EF5350</color>
+    <color name="snackbarColor">#1E1E1E</color>
+    <color name="foregroundElementColor">#595959</color>
 </resources>

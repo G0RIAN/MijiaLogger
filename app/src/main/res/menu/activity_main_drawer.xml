@@ -5,16 +5,19 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_display"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/menu_display" />
+            android:id="@+id/nav_sensors"
+            android:icon="@drawable/ic_thermometer_white_24dp"
+            android:iconTint="@color/colorTextDark"
+            android:title="@string/menu_sensors" />
         <item
-            android:id="@+id/nav_logs"
-            android:icon="?android:attr/actionModeFindDrawable"
+            android:id="@+id/nav_logging"
+            android:icon="@drawable/ic_baseline_android_24"
+            android:iconTint="@color/colorTextDark"
             android:title="@string/menu_logs" />
         <item
             android:id="@+id/nav_settings"
-            android:icon="@android:drawable/ic_menu_preferences"
+            android:icon="@drawable/ic_baseline_settings_24"
+            android:iconTint="@color/colorTextDark"
             android:title="@string/menu_settings" />
     </group>
 </menu>
