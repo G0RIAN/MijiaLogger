@@ -5,7 +5,6 @@ import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -14,17 +13,20 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.work.WorkManager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 public class BluetoothLeService extends Service implements BluetoothProfile {
 	public final static String ACTION_GATT_CONNECTED =
@@ -37,87 +39,51 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 			"com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
 	public final static String EXTRA_DATA =
 			"com.example.bluetooth.le.EXTRA_DATA";
+	private final static String READ_SENSOR_WORKER_TAG = "ReadSensor";
 	static final long BLE_SEARCH_INTERVAL_MS = 120 * 1000;
 	private final static String TAG = BluetoothLeService.class.getSimpleName();
+	private static final long SCAN_INTERVAL = 1;
+	private static final String SENSOR_UPDATE_ACTION = "de.gorian.sensorReader.MIJIA_DATA_RECEIVED";
 	private BluetoothLeScanner bluetoothLeScanner;
 	private BluetoothManager bluetoothManager;
 	private BluetoothAdapter bluetoothAdapter;
 	private List<BluetoothGatt> bluetoothGatt = new ArrayList<>();
 	private List<Integer> connectionState = new ArrayList<>();
+	private SensorUpdateBroadcastReceiver sensorUpdateBroadcastReceiver;
 	// Various callback methods defined by the BLE API.
-	private final BluetoothGattCallback gattCallback =
-			new BluetoothGattCallback() {
-				@Override
-				public void onConnectionStateChange(BluetoothGatt gatt, int status,
-				                                    int newState) {
-					String intentAction;
-					int ind = bluetoothGatt.indexOf(gatt);
-					try {
-						if (newState == BluetoothProfile.STATE_CONNECTED) {
-							intentAction = ACTION_GATT_CONNECTED;
-							connectionState.set(ind, STATE_CONNECTED);
-							broadcastUpdate(intentAction);
-							Log.i(TAG, "Connected to GATT server.");
-							Log.i(TAG, "Attempting to start service discovery:" +
-									gatt.discoverServices());
-
-						} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-							intentAction = ACTION_GATT_DISCONNECTED;
-							connectionState.set(ind, STATE_DISCONNECTED);
-							Log.i(TAG, "Disconnected from GATT server.");
-							broadcastUpdate(intentAction);
-						}
-					} catch (ArrayIndexOutOfBoundsException e) {
-						if (connectionState.size() == 1) {
-							connectionState.set(0, newState);
-						}
-					}
-				}
-
-				@Override
-				// New services discovered
-				public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-					if (status == BluetoothGatt.GATT_SUCCESS) {
-						broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
-					} else {
-						Log.w(TAG, "onServicesDiscovered received: " + status);
-					}
-				}
-
-				@Override
-				// Result of a characteristic read operation
-				public void onCharacteristicRead(BluetoothGatt gatt,
-				                                 BluetoothGattCharacteristic characteristic,
-				                                 int status) {
-					if (status == BluetoothGatt.GATT_SUCCESS) {
-						broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
-					}
-				}
-			};
-	private List<BluetoothDevice> devices = new ArrayList<>();
 	private ScanCallback leScanCallback =
 			new ScanCallback() {
 				@Override
 				public void onScanResult(int callbackType, ScanResult result) {
+
 					final BluetoothDevice device = result.getDevice();
-					if (devices.contains(device)) {
-						return;
-					}
-					Log.i(TAG, "New BLE device found: " + device.getName() + " " + device.getAddress());
-					if (device.getName() != null && device.getName().contains("MJ_HT_V1") && !devices.contains(device)) {
 
-						devices.add(device);
-						BluetoothGatt gatt = device.connectGatt(BluetoothLeService.this, true, gattCallback);
-						Log.i(TAG, "Connected to GATT server.");
-						Log.i(TAG, "Attempting to start service discovery:" + gatt.discoverServices());
-						bluetoothGatt.add(gatt);
-						connectionState.add(BluetoothProfile.STATE_CONNECTED);
+//					Log.i(TAG, "New BLE device found: " + device.getName() + " " + device.getAddress());
+					if (device.getName() != null && device.getName().contains("MJ_HT_V1")) {
 
-						// TODO: remove below in release
-						stopScan();
+						try {
+							Collection<byte[]> scanData = Objects.requireNonNull(result.getScanRecord()).getServiceData().values();
+							for (byte[] aByteSet : scanData) {
+								BluetoothLeService.this.broadcastUpdate(SENSOR_UPDATE_ACTION, aByteSet);
+							}
+
+							connectionState.add(BluetoothProfile.STATE_CONNECTED);
+						} catch (NullPointerException e) {
+							// do nothing
+						}
+
+
+						// TODO: update UI
 					}
 				}
 			};
+
+	public String byteToHex(byte num) {
+		char[] hexDigits = new char[2];
+		hexDigits[0] = Character.forDigit((num >> 4) & 0xF, 16);
+		hexDigits[1] = Character.forDigit((num & 0xF), 16);
+		return new String(hexDigits);
+	}
 
 	public BluetoothLeService() {
 		super();
@@ -130,49 +96,45 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 
 	@Override
 	public List<BluetoothDevice> getConnectedDevices() {
-		return devices;
+		return null;
 	}
 
 	@Override
 	public List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
-		List<BluetoothDevice> someDevices = new ArrayList<>();
-		for (int ii = 0; ii < devices.size(); ii++) {
-			if (Arrays.stream(states).boxed().collect(Collectors.toList()).contains(connectionState.get(ii))) {
-				someDevices.add(devices.get(ii));
-			}
-		}
-		return someDevices;
+//		List<BluetoothDevice> someDevices = new ArrayList<>();
+//		for (int ii = 0; ii < devices.size(); ii++) {
+//			if (Arrays.stream(states).boxed().collect(Collectors.toList()).contains(connectionState.get(ii))) {
+//				someDevices.add(devices.get(ii));
+//			}
+//		}
+		return null;
 	}
 
 	@Override
 	public int getConnectionState(BluetoothDevice device) {
-		int state = -1;
-		try {
-			state = connectionState.get(devices.indexOf(device));
-		} catch (IndexOutOfBoundsException e) {
-			Log.e(TAG, "device (" + device.getName() + " " + device.getAddress() + ") unknown. Known devices :");
-			devices.forEach(dev -> Log.d(TAG, "\t\t" + dev.getName() + " " + dev.getAddress()));
-		}
-		return state;
+//		int state = -1;
+//		try {
+//			state = connectionState.get(devices.indexOf(device));
+//		} catch (IndexOutOfBoundsException e) {
+//			Log.e(TAG, "device (" + device.getName() + " " + device.getAddress() + ") unknown. Known devices :");
+//			devices.forEach(dev -> Log.d(TAG, "\t\t" + dev.getName() + " " + dev.getAddress()));
+//		}
+		return BluetoothProfile.STATE_CONNECTED;
 	}
 
-//	public final static UUID UUID_HEART_RATE_MEASUREMENT =
-//			UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		LazyHolder.INSTANCE = this;
 		initBTLE();
-	}
-
-	public void clearDevices() {
-		devices.clear();
+		this.sensorUpdateBroadcastReceiver = new SensorUpdateBroadcastReceiver();
+		LocalBroadcastManager.getInstance(this).registerReceiver(this.sensorUpdateBroadcastReceiver, new IntentFilter(SENSOR_UPDATE_ACTION));
 	}
 
 	private void broadcastUpdate(final String action) {
 		final Intent intent = new Intent(action);
-		sendBroadcast(intent);
+		LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 	}
 
 	private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
@@ -181,14 +143,22 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 
 		// write the data formatted in HEX.
 		final byte[] data = characteristic.getValue();
+		broadcastUpdate(action, data);
+	}
+
+	private void broadcastUpdate(final String action, final byte[] data) {
+
+		final Intent intent = new Intent(action);
+
+		// write the data formatted in HEX.
 		if (data != null && data.length > 0) {
 			final StringBuilder stringBuilder = new StringBuilder(data.length);
 			for (byte byteChar : data)
 				stringBuilder.append(String.format("%02X ", byteChar));
 			intent.putExtra(EXTRA_DATA, new String(data) + "\n" +
 					stringBuilder.toString());
-
-			sendBroadcast(intent);
+			Log.d(TAG, "Sensor update broadcasted: " + stringBuilder.toString());
+			LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 		}
 	}
 
@@ -239,21 +209,31 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 
 	public void stopScan() {
 		bluetoothLeScanner.stopScan(leScanCallback);
-	}
+		if (bluetoothGatt.size() > 0) {
+			Log.i(TAG, "SERVICES: ");
+			bluetoothGatt.get(0).getServices().forEach(bluetoothGattService -> Log.i(TAG, bluetoothGattService.getUuid().toString()));
+		}
 
-	public int getNumberOfDevices() {
-		return devices.size();
+//		WorkManager workMan = WorkManager.getInstance(this);
+//		for (BluetoothDevice device : devices) {
+//			Data data = new Data.Builder().putString("MAC", device.getAddress()).build();
+//			PeriodicWorkRequest worker = new PeriodicWorkRequest.Builder(ReadSensorWorker.class, SCAN_INTERVAL, TimeUnit.SECONDS).setInputData(data).addTag(READ_SENSOR_WORKER_TAG).build();
+//			workMan.enqueue(worker);
+//		}
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorUpdateBroadcastReceiver);
 		Log.d(TAG, "Service died.");
 	}
 
 	public void startScan() {
 		bluetoothGatt.clear();
 		bluetoothLeScanner.startScan(leScanCallback);
+		WorkManager workMan = WorkManager.getInstance(this);
+		workMan.cancelAllWorkByTag(READ_SENSOR_WORKER_TAG);
 	}
 
 	public static class LazyHolder {

@@ -117,26 +117,19 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void resetFoundDevices() {
-		bluetoothLeService.clearDevices();
 		LinearLayout devicesList = findViewById(R.id.devices_list);
 		devicesList.removeAllViews();
 	}
 
 	void stopScan() {
 		bluetoothLeService.stopScan();
-		int nDevices = bluetoothLeService.getNumberOfDevices();
-		String resultMessage = (nDevices == 0 ? "No" : nDevices) + " compatible " + (nDevices == 1 ? "device" : "devices") + " found.";
+//		int nDevices = bluetoothLeService.getNumberOfDevices();
+//		String resultMessage = (nDevices == 0 ? "No" : nDevices) + " compatible " + (nDevices == 1 ? "device" : "devices") + " found.";
 		Snackbar sb;
-		if (nDevices == 0) {
-			sb = Snackbar.make(findViewById(R.id.nav_host_fragment), resultMessage, Snackbar.LENGTH_LONG).setAction("RETRY", view -> searchBLEDevices());
-		} else {
-			sb = Snackbar.make(findViewById(R.id.nav_host_fragment), resultMessage, Snackbar.LENGTH_LONG);
-			final Snackbar sbF = sb;
-			sb.setAction("DISMISS", view -> sbF.dismiss());
-		}
+		sb = Snackbar.make(findViewById(R.id.nav_host_fragment), "TODO", Snackbar.LENGTH_LONG).setAction("RETRY", view -> searchBLEDevices());
 		sb.getView().setBackgroundColor(ContextCompat.getColor(this, R.color.snackbarColor));
 		sb.show();
-		Log.d(TAG, resultMessage);
+//		Log.d(TAG, resultMessage);
 
 
 	}
@@ -152,14 +145,14 @@ public class MainActivity extends AppCompatActivity {
 		}
 		requestPermissions();
 		if (!bluetoothLeService.isInitialized()) return;
-		bluetoothLeService.clearDevices();
+//		bluetoothLeService.clearDevices();
 		Log.i(TAG, "Suche nach BLE Geräten gestartet...");
 		AsyncTask.execute(this::startScan);
 
-		handler.postDelayed(() -> {
-			Log.i(TAG, "Suche nach BLE Geräten beendet.");
-			AsyncTask.execute(this::stopScan);
-		}, BluetoothLeService.BLE_SEARCH_INTERVAL_MS);
+//		handler.postDelayed(() -> {
+//			Log.i(TAG, "Suche nach BLE Geräten beendet.");
+//			AsyncTask.execute(this::stopScan);
+//		}, BluetoothLeService.BLE_SEARCH_INTERVAL_MS);
 	}
 
 

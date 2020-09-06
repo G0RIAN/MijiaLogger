@@ -29,7 +29,17 @@
         </activity>
         <service
             android:name=".BluetoothLeService"
-            android:exported="false" />
+            android:exported="false">
+
+        </service>
+        <receiver
+            android:name=".SensorUpdateBroadcastReceiver"
+            android:label="SensorUpdate">
+            <intent-filter>
+                <action android:name="de.gorian.sensorReader.MIJIA_DATA_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
