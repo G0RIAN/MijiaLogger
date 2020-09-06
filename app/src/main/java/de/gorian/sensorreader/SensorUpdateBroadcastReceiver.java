@@ -11,15 +11,19 @@ import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-public class SensorUpdateBroadcastReceiver extends BroadcastReceiver {
-	final String serverUri = "tcp://127.0.0.1:1883";
+import java.util.Objects;
+
+public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements MqttCallback {
+	public static final String TAG = "BroadcastReceiver";
 	String clientId = "SensorReaderClient";
 	MqttAndroidClient mqttAndroidClient;
+	final String serverUri = "tcp://192.168.0.213:1883";
 
 	//	final String publishTopic = "MijiaSensor/";
 //	final String publishMessage = "Hello World!";
@@ -29,102 +33,133 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver {
 
 		clientId = clientId + System.currentTimeMillis();
 
-		MqttAndroidClient mqttAndroidClient = new MqttAndroidClient(context, serverUri, clientId);
-		mqttAndroidClient.setCallback(new MqttCallbackExtended() {
-			@Override
-			public void connectComplete(boolean reconnect, String serverURI) {
-
-				if (reconnect) {
-					addToHistory(context, "Reconnected to : " + serverURI);
-				} else {
-					addToHistory(context, "Connected to: " + serverURI);
-				}
-			}
-
-			@Override
-			public void connectionLost(Throwable cause) {
-				addToHistory(context, "The Connection was lost.");
-			}
-
-			@Override
-			public void messageArrived(String topic, MqttMessage message) throws Exception {
-				addToHistory(context, "Incoming message: " + new String(message.getPayload()));
-			}
-
-			@Override
-			public void deliveryComplete(IMqttDeliveryToken token) {
-
-			}
-		});
-
-		MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-		mqttConnectOptions.setAutomaticReconnect(true);
-		mqttConnectOptions.setCleanSession(false);
-
-		try {
-			addToHistory(context, "Connecting to " + serverUri);
-			mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
+		if (mqttAndroidClient == null) {
+			mqttAndroidClient = new MqttAndroidClient(context, serverUri, clientId);
+			mqttAndroidClient.setCallback(new MqttCallbackExtended() {
 				@Override
-				public void onSuccess(IMqttToken asyncActionToken) {
-					DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
-					disconnectedBufferOptions.setBufferEnabled(true);
-					disconnectedBufferOptions.setBufferSize(100);
-					disconnectedBufferOptions.setPersistBuffer(false);
-					disconnectedBufferOptions.setDeleteOldestMessages(false);
-					mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
+				public void connectComplete(boolean reconnect, String serverURI) {
+
+					if (reconnect) {
+						addToHistory(context, "Reconnected to : " + serverURI);
+					} else {
+						addToHistory(context, "Connected to: " + serverURI);
+					}
 				}
 
 				@Override
-				public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-					addToHistory(context, "Failed to connect to: " + serverUri);
+				public void connectionLost(Throwable cause) {
+					addToHistory(context, "The Connection was lost.");
+				}
+
+				@Override
+				public void messageArrived(String topic, MqttMessage message) {
+					addToHistory(context, "Incoming message: " + new String(message.getPayload()));
+				}
+
+				@Override
+				public void deliveryComplete(IMqttDeliveryToken token) {
+
 				}
 			});
-
-
-		} catch (MqttException ex) {
-			ex.printStackTrace();
 		}
 
-		String extraData = (String) intent.getExtras().get("com.example.bluetooth.le.EXTRA_DATA");
-		Log.d("BroadcastReceiver", "Broadcast received.");
+
+		if (!mqttAndroidClient.isConnected()) {
+			MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+			mqttConnectOptions.setAutomaticReconnect(true);
+			mqttConnectOptions.setCleanSession(false);
+			try {
+				addToHistory(context, "Connecting to " + serverUri);
+				mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
+					@Override
+					public void onSuccess(IMqttToken asyncActionToken) {
+						DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
+						disconnectedBufferOptions.setBufferEnabled(true);
+						disconnectedBufferOptions.setBufferSize(100);
+						disconnectedBufferOptions.setPersistBuffer(false);
+						disconnectedBufferOptions.setDeleteOldestMessages(false);
+						mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
+						try {
+							parseAndSendData(context, intent);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						try {
+							mqttAndroidClient.disconnect();
+						} catch (MqttException e) {
+							e.printStackTrace();
+						}
+					}
+
+					@Override
+					public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+						addToHistory(context, "Failed to connect to: " + serverUri);
+					}
+				});
+
+
+			} catch (MqttException ex) {
+				ex.printStackTrace();
+			}
+		}
+	}
+
+	private void parseAndSendData(Context context, Intent intent) throws InterruptedException {
+		Thread.sleep(200);
+		String extraData = (String) Objects.requireNonNull(intent.getExtras()).get("com.example.bluetooth.le.EXTRA_DATA");
+		Log.d(TAG, "Broadcast received.");
+		assert extraData != null;
 		String[] split = extraData.split("\n");
 		String[] hexBytes = split[1].split(" ");
+		try {
+			if (hexBytes.length < 12) return;
 
-		if (hexBytes.length < 14) return;
+			int[] data = new int[hexBytes.length];
+			for (int ii = 0; ii < hexBytes.length; ii++) {
+				data[ii] = Integer.parseInt(hexBytes[ii], 16);
+			}
 
-		byte[] data = new byte[hexBytes.length];
-		for (int ii = 0; ii < hexBytes.length; ii++) {
-			data[ii] = Byte.parseByte(hexBytes[ii]);
+
+			Integer battery = null;
+			Double temp = null;
+			Double humidity = null;
+
+			switch (data[11]) {
+				case 0x06: //humidity
+					humidity = data[14] / 10.0 + (data[15] * 16 * 16) / 10.0;
+					break;
+				case 0x0D: //temp + humidity
+					humidity = data[16] / 10.0 + data[17] * 16 * 16 / 10.0;
+				case 0x04: //temp
+					temp = data[14] / 10.0 + data[15] * 16 * 16 / 10.0;
+					break;
+				case 0x0A: //battery
+					battery = data[14];
+					break;
+			}
+			Log.d("BroadcastReceiver", "Sensor data parsed (temp: " + temp + "°C, hum: " + humidity + "%, battery: " + battery + "%)");
+
+			if (this.mqttAndroidClient == null) {
+				Log.e(TAG, "mqttAndroidClient is null. Could not connect to mqtt server. ");
+				return;
+			}
+
+			if (temp != null) publishMessage("SensorReader/temperature", temp.toString(), context);
+			if (humidity != null)
+				publishMessage("SensorReader/humidity", humidity.toString(), context);
+			if (battery != null)
+				publishMessage("SensorReader/battery", battery.toString(), context);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			try {
+				mqttAndroidClient.disconnect();
+			} catch (MqttException ex) {
+				ex.printStackTrace();
+			}
 		}
-
-
-		Integer battery = null;
-		Double temp = null;
-		Double humidity = null;
-
-		double value = (data[16] + data[17] * 16 * 16) / 10.0;
-		switch (data[13]) {
-			case 0x06: //humidity
-				humidity = value;
-				break;
-			case 0x0D: //temp + humidity
-				humidity = (data[18] + data[19] * 16 * 16) / 10.0;
-			case 0x04: //temp
-				temp = value;
-				break;
-			case 0x0A: //battery
-				battery = (int) data[16];
-		}
-
-		Log.d("BroadcastReceiver", "Sensor data parsed (" + temp + " hum: " + humidity + "battery:" + battery);
-
-		if (temp != null) publishMessage("SensorReader/temperature", temp.toString(), context);
-		if (humidity != null) publishMessage("SensorReader/humidity", humidity.toString(), context);
-		if (battery != null) publishMessage("SensorReader/humidity", battery.toString(), context);
 	}
 
 	private void addToHistory(Context context, String mainText) {
-		System.out.println("LOG: " + mainText);
+		Log.i(TAG, "LOG: " + mainText);
 		Toast toast = Toast.makeText(context, mainText, Toast.LENGTH_LONG);
 		toast.show();
 	}
@@ -140,10 +175,24 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver {
 				addToHistory(context, mqttAndroidClient.getBufferedMessageCount() + " messages in buffer.");
 			}
 		} catch (MqttException e) {
-			System.err.println("Error Publishing: " + e.getMessage());
+			Log.e(TAG, "Error Publishing: " + e.getMessage());
 			e.printStackTrace();
 		}
 	}
 
 
+	@Override
+	public void connectionLost(Throwable cause) {
+
+	}
+
+	@Override
+	public void messageArrived(String topic, MqttMessage message) {
+
+	}
+
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken token) {
+
+	}
 }

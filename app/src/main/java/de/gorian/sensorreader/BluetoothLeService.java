@@ -23,24 +23,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.work.WorkManager;
 
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-public class BluetoothLeService extends Service implements BluetoothProfile {
-	public final static String ACTION_GATT_CONNECTED =
-			"com.example.bluetooth.le.ACTION_GATT_CONNECTED";
-	public final static String ACTION_GATT_DISCONNECTED =
-			"com.example.bluetooth.le.ACTION_GATT_DISCONNECTED";
-	public final static String ACTION_GATT_SERVICES_DISCOVERED =
-			"com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED";
-	public final static String ACTION_DATA_AVAILABLE =
-			"com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+public class BluetoothLeService extends Service implements BluetoothProfile, MqttCallback {
 	public final static String EXTRA_DATA =
 			"com.example.bluetooth.le.EXTRA_DATA";
 	private final static String READ_SENSOR_WORKER_TAG = "ReadSensor";
-	static final long BLE_SEARCH_INTERVAL_MS = 120 * 1000;
 	private final static String TAG = BluetoothLeService.class.getSimpleName();
 	private static final long SCAN_INTERVAL = 1;
 	private static final String SENSOR_UPDATE_ACTION = "de.gorian.sensorReader.MIJIA_DATA_RECEIVED";
@@ -151,7 +146,7 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 		final Intent intent = new Intent(action);
 
 		// write the data formatted in HEX.
-		if (data != null && data.length > 0) {
+		if (data != null && data.length > 6) {
 			final StringBuilder stringBuilder = new StringBuilder(data.length);
 			for (byte byteChar : data)
 				stringBuilder.append(String.format("%02X ", byteChar));
@@ -234,6 +229,21 @@ public class BluetoothLeService extends Service implements BluetoothProfile {
 		bluetoothLeScanner.startScan(leScanCallback);
 		WorkManager workMan = WorkManager.getInstance(this);
 		workMan.cancelAllWorkByTag(READ_SENSOR_WORKER_TAG);
+	}
+
+	@Override
+	public void connectionLost(Throwable cause) {
+
+	}
+
+	@Override
+	public void messageArrived(String topic, MqttMessage message) throws Exception {
+
+	}
+
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken token) {
+
 	}
 
 	public static class LazyHolder {

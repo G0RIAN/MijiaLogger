@@ -5,10 +5,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
-import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,7 +28,6 @@ public class MainActivity extends AppCompatActivity {
 	public static String TAG;
 	private AppBarConfiguration mAppBarConfiguration;
 	private BluetoothLeService bluetoothLeService;
-	private Handler handler = new Handler();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -96,29 +93,18 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
-	private boolean requestPermissions() {
+	private void requestPermissions() {
 		if (!bluetoothLeService.hasRequiredPermissions()) {
 			Log.d(TAG, "Requesting permissions...");
 			ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_COARSE_LOCATION}, PackageManager.PERMISSION_GRANTED);
 			Log.d(TAG, "Done!");
-		} else return true;
+		} else return;
 		Log.d(TAG, "Recheck permissions: " + bluetoothLeService.hasRequiredPermissions() + "!!!");
 		if (!bluetoothLeService.hasRequiredPermissions()) {
 			Snackbar sb = Snackbar.make(findViewById(R.id.nav_host_fragment), "Bluetooth and Location permission are needed to use the bluetooth module. ", Snackbar.LENGTH_LONG).setAction("ASK AGAIN", view -> ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_COARSE_LOCATION}, PackageManager.PERMISSION_GRANTED));
 			sb.getView().setBackgroundColor(ContextCompat.getColor(this, R.color.snackbarColor));
 			sb.show();
-			return false;
 		}
-		return true;
-	}
-
-	public int dpToPixel(int dp) {
-		return Math.round(dp * this.getResources().getDisplayMetrics().density);
-	}
-
-	private void resetFoundDevices() {
-		LinearLayout devicesList = findViewById(R.id.devices_list);
-		devicesList.removeAllViews();
 	}
 
 	void stopScan() {
