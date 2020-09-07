@@ -8,18 +8,15 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProviders;
+import androidx.lifecycle.ViewModelProvider;
 
 import de.gorian.sensorreader.R;
 
 public class SettingsFragment extends Fragment {
 
-	private SettingsViewModel settingsViewModel;
-
 	public View onCreateView(@NonNull LayoutInflater inflater,
 	                         ViewGroup container, Bundle savedInstanceState) {
-		settingsViewModel =
-				ViewModelProviders.of(this).get(SettingsViewModel.class);
+		SettingsViewModel settingsViewModel = new ViewModelProvider(this).get(SettingsViewModel.class);
 		View root = inflater.inflate(R.layout.fragment_settings, container, false);
 		final TextView textView = root.findViewById(R.id.text_slideshow);
 		settingsViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);

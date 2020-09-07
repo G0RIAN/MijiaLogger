@@ -1,0 +1,35 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <EditTextPreferenceCompat
+        android:id="@+id/mqtt_server"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:defaultValue="tcp://127.0.0.1:1883"
+        android:key="mqtt_server"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="MQTT Server"
+        app:icon="@drawable/server"
+        app:summary="tcp://127.0.0.1:1883" />
+    <EditTextPreferenceCompat
+        android:id="@+id/client_id"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:defaultValue="@string/app_name"
+        android:key="client_id"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Client ID"
+        app:icon="@drawable/phone_info"
+        app:summary="@string/app_name" />
+    <SwitchPreferenceCompat
+        app:key="notifications"
+        app:title="Enable message notifications" />
+
+    <Preference
+        app:key="feedback"
+        app:summary="Report technical issues or suggest new features"
+        app:title="Send feedback" />
+
+</PreferenceScreen>

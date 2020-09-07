@@ -17,10 +17,11 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.util.Locale;
 import java.util.Objects;
 
 public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements MqttCallback {
-	public static final String TAG = "BroadcastReceiver";
+	public static final String TAG = SensorUpdateBroadcastReceiver.class.getSimpleName();
 	String clientId = "SensorReaderClient";
 	MqttAndroidClient mqttAndroidClient;
 	final String serverUri = "tcp://192.168.0.213:1883";
@@ -31,9 +32,51 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements 
 	public void onReceive(Context context, Intent intent) {
 
 
-		clientId = clientId + System.currentTimeMillis();
+		createClient(context);
+		connect(context);
+		try {
+			parseAndSendData(context, intent);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
+
+	}
+
+	void connect(Context context) {
+		if (!mqttAndroidClient.isConnected()) {
+			MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+			mqttConnectOptions.setAutomaticReconnect(true);
+			mqttConnectOptions.setCleanSession(false);
+			try {
+				addToHistory(context, "Connecting to " + serverUri);
+				mqttAndroidClient.connect(mqttConnectOptions, context, new IMqttActionListener() {
+					@Override
+					public void onSuccess(IMqttToken asyncActionToken) {
+						DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
+						disconnectedBufferOptions.setBufferEnabled(true);
+						disconnectedBufferOptions.setBufferSize(100);
+						disconnectedBufferOptions.setPersistBuffer(false);
+						disconnectedBufferOptions.setDeleteOldestMessages(false);
+						mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
+					}
+
+					@Override
+					public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+						addToHistory(context, "Failed to connect to: " + serverUri);
+					}
+				});
+
+
+			} catch (MqttException ex) {
+				ex.printStackTrace();
+			}
+		}
+	}
+
+	void createClient(Context context) {
 		if (mqttAndroidClient == null) {
+			clientId = clientId + System.currentTimeMillis();
 			mqttAndroidClient = new MqttAndroidClient(context, serverUri, clientId);
 			mqttAndroidClient.setCallback(new MqttCallbackExtended() {
 				@Override
@@ -62,46 +105,6 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements 
 				}
 			});
 		}
-
-
-		if (!mqttAndroidClient.isConnected()) {
-			MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-			mqttConnectOptions.setAutomaticReconnect(true);
-			mqttConnectOptions.setCleanSession(false);
-			try {
-				addToHistory(context, "Connecting to " + serverUri);
-				mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
-					@Override
-					public void onSuccess(IMqttToken asyncActionToken) {
-						DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
-						disconnectedBufferOptions.setBufferEnabled(true);
-						disconnectedBufferOptions.setBufferSize(100);
-						disconnectedBufferOptions.setPersistBuffer(false);
-						disconnectedBufferOptions.setDeleteOldestMessages(false);
-						mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
-						try {
-							parseAndSendData(context, intent);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-						try {
-							mqttAndroidClient.disconnect();
-						} catch (MqttException e) {
-							e.printStackTrace();
-						}
-					}
-
-					@Override
-					public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-						addToHistory(context, "Failed to connect to: " + serverUri);
-					}
-				});
-
-
-			} catch (MqttException ex) {
-				ex.printStackTrace();
-			}
-		}
 	}
 
 	private void parseAndSendData(Context context, Intent intent) throws InterruptedException {
@@ -126,12 +129,12 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements 
 
 			switch (data[11]) {
 				case 0x06: //humidity
-					humidity = data[14] / 10.0 + (data[15] * 16 * 16) / 10.0;
+					humidity = data[14] / 10.d + (data[15] * 16 * 16) / 10.d;
 					break;
 				case 0x0D: //temp + humidity
-					humidity = data[16] / 10.0 + data[17] * 16 * 16 / 10.0;
+					humidity = data[16] / 10.d + data[17] * 16 * 16 / 10.d;
 				case 0x04: //temp
-					temp = data[14] / 10.0 + data[15] * 16 * 16 / 10.0;
+					temp = data[14] / 10.d + data[15] * 16 * 16 / 10.d;
 					break;
 				case 0x0A: //battery
 					battery = data[14];
@@ -144,11 +147,12 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements 
 				return;
 			}
 
-			if (temp != null) publishMessage("SensorReader/temperature", temp.toString(), context);
+			if (temp != null)
+				publishMessage("SensorReader/temperature", String.format(Locale.GERMANY, "%2.1f", temp), context);
 			if (humidity != null)
-				publishMessage("SensorReader/humidity", humidity.toString(), context);
+				publishMessage("SensorReader/humidity", String.format(Locale.GERMANY, "%2.1f", humidity), context);
 			if (battery != null)
-				publishMessage("SensorReader/battery", battery.toString(), context);
+				publishMessage("SensorReader/battery", String.format(Locale.GERMANY, "%3d", battery), context);
 		} catch (ArrayIndexOutOfBoundsException e) {
 			try {
 				mqttAndroidClient.disconnect();
@@ -195,4 +199,5 @@ public class SensorUpdateBroadcastReceiver extends BroadcastReceiver implements 
 	public void deliveryComplete(IMqttDeliveryToken token) {
 
 	}
+
 }

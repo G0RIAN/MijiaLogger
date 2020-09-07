@@ -5,7 +5,6 @@ import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
@@ -25,26 +24,21 @@ import androidx.work.WorkManager;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
 public class BluetoothLeService extends Service implements BluetoothProfile, MqttCallback {
-	public final static String EXTRA_DATA =
-			"com.example.bluetooth.le.EXTRA_DATA";
+
+	public final static String EXTRA_DATA = "com.example.bluetooth.le.EXTRA_DATA";
 	private final static String READ_SENSOR_WORKER_TAG = "ReadSensor";
 	private final static String TAG = BluetoothLeService.class.getSimpleName();
-	private static final long SCAN_INTERVAL = 1;
 	private static final String SENSOR_UPDATE_ACTION = "de.gorian.sensorReader.MIJIA_DATA_RECEIVED";
-	private BluetoothLeScanner bluetoothLeScanner;
-	private BluetoothManager bluetoothManager;
-	private BluetoothAdapter bluetoothAdapter;
-	private List<BluetoothGatt> bluetoothGatt = new ArrayList<>();
-	private List<Integer> connectionState = new ArrayList<>();
-	private SensorUpdateBroadcastReceiver sensorUpdateBroadcastReceiver;
 	// Various callback methods defined by the BLE API.
 	private ScanCallback leScanCallback =
 			new ScanCallback() {
@@ -59,12 +53,10 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 						try {
 							Collection<byte[]> scanData = Objects.requireNonNull(result.getScanRecord()).getServiceData().values();
 							for (byte[] aByteSet : scanData) {
-								BluetoothLeService.this.broadcastUpdate(SENSOR_UPDATE_ACTION, aByteSet);
+								BluetoothLeService.this.broadcastUpdate(aByteSet);
 							}
 
-							connectionState.add(BluetoothProfile.STATE_CONNECTED);
-						} catch (NullPointerException e) {
-							// do nothing
+						} catch (NullPointerException ignored) {
 						}
 
 
@@ -72,12 +64,14 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 					}
 				}
 			};
+	private BluetoothLeScanner bluetoothLeScanner;
+	private BluetoothManager bluetoothManager;
+	private BluetoothAdapter bluetoothAdapter;
+	private List<BluetoothGatt> bluetoothGatt = new ArrayList<>();
+	private SensorUpdateBroadcastReceiver sensorUpdateBroadcastReceiver;
 
-	public String byteToHex(byte num) {
-		char[] hexDigits = new char[2];
-		hexDigits[0] = Character.forDigit((num >> 4) & 0xF, 16);
-		hexDigits[1] = Character.forDigit((num & 0xF), 16);
-		return new String(hexDigits);
+	public static BluetoothLeService getINSTANCE() {
+		return LazyHolder.INSTANCE;
 	}
 
 	public BluetoothLeService() {
@@ -85,13 +79,20 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		Log.d(TAG, "Constructor executed.");
 	}
 
-	public static BluetoothLeService getINSTANCE() {
-		return LazyHolder.INSTANCE;
-	}
-
 	@Override
 	public List<BluetoothDevice> getConnectedDevices() {
 		return null;
+	}
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		LazyHolder.INSTANCE = this;
+		initBTLE();
+		this.sensorUpdateBroadcastReceiver = new SensorUpdateBroadcastReceiver();
+		this.sensorUpdateBroadcastReceiver.createClient(this);
+		this.sensorUpdateBroadcastReceiver.connect(this);
+		LocalBroadcastManager.getInstance(this).registerReceiver(this.sensorUpdateBroadcastReceiver, new IntentFilter(SENSOR_UPDATE_ACTION));
 	}
 
 	@Override
@@ -117,41 +118,16 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		return BluetoothProfile.STATE_CONNECTED;
 	}
 
+	private void broadcastUpdate(final byte[] data) {
 
-	@Override
-	public void onCreate() {
-		super.onCreate();
-		LazyHolder.INSTANCE = this;
-		initBTLE();
-		this.sensorUpdateBroadcastReceiver = new SensorUpdateBroadcastReceiver();
-		LocalBroadcastManager.getInstance(this).registerReceiver(this.sensorUpdateBroadcastReceiver, new IntentFilter(SENSOR_UPDATE_ACTION));
-	}
-
-	private void broadcastUpdate(final String action) {
-		final Intent intent = new Intent(action);
-		LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
-	}
-
-	private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
-
-		final Intent intent = new Intent(action);
-
-		// write the data formatted in HEX.
-		final byte[] data = characteristic.getValue();
-		broadcastUpdate(action, data);
-	}
-
-	private void broadcastUpdate(final String action, final byte[] data) {
-
-		final Intent intent = new Intent(action);
+		final Intent intent = new Intent(BluetoothLeService.SENSOR_UPDATE_ACTION);
 
 		// write the data formatted in HEX.
 		if (data != null && data.length > 6) {
 			final StringBuilder stringBuilder = new StringBuilder(data.length);
 			for (byte byteChar : data)
 				stringBuilder.append(String.format("%02X ", byteChar));
-			intent.putExtra(EXTRA_DATA, new String(data) + "\n" +
-					stringBuilder.toString());
+			intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
 			Log.d(TAG, "Sensor update broadcasted: " + stringBuilder.toString());
 			LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 		}
@@ -167,10 +143,10 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		return bluetoothLeScanner != null;
 	}
 
-	private boolean initBTLE() {
+	private void initBTLE() {
 
 		Log.d(TAG, "Check permissions: " + hasRequiredPermissions());
-		if (!hasRequiredPermissions()) return false;
+		if (!hasRequiredPermissions()) return;
 
 		if (bluetoothManager == null) {
 			bluetoothManager = (BluetoothManager) this.getSystemService(Context.BLUETOOTH_SERVICE);
@@ -184,11 +160,12 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 			enableIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 //			int REQUEST_ENABLE_BT = 42;
 			startActivity(enableIntent);
-			return false;
 		}
 
-		return true;
+	}
 
+	private boolean hasPermission(String permission) {
+		return ActivityCompat.checkSelfPermission(getApplicationContext(), permission) == PackageManager.PERMISSION_GRANTED;
 	}
 
 	boolean hasRequiredPermissions() {
@@ -198,8 +175,17 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		return hasBluetoothPermission && hasBluetoothAdminPermission && hasLocationPermission;
 	}
 
-	private boolean hasPermission(String permission) {
-		return ActivityCompat.checkSelfPermission(getApplicationContext(), permission) == PackageManager.PERMISSION_GRANTED;
+	@Override
+	public void onDestroy() {
+		stopScan();
+		super.onDestroy();
+		try {
+			sensorUpdateBroadcastReceiver.mqttAndroidClient.disconnect();
+		} catch (MqttException e) {
+			Log.e(TAG, Arrays.toString(e.getStackTrace()));
+		}
+		LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorUpdateBroadcastReceiver);
+		Log.d(TAG, "Service died.");
 	}
 
 	public void stopScan() {
@@ -208,20 +194,10 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 			Log.i(TAG, "SERVICES: ");
 			bluetoothGatt.get(0).getServices().forEach(bluetoothGattService -> Log.i(TAG, bluetoothGattService.getUuid().toString()));
 		}
-
-//		WorkManager workMan = WorkManager.getInstance(this);
-//		for (BluetoothDevice device : devices) {
-//			Data data = new Data.Builder().putString("MAC", device.getAddress()).build();
-//			PeriodicWorkRequest worker = new PeriodicWorkRequest.Builder(ReadSensorWorker.class, SCAN_INTERVAL, TimeUnit.SECONDS).setInputData(data).addTag(READ_SENSOR_WORKER_TAG).build();
-//			workMan.enqueue(worker);
-//		}
 	}
 
 	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorUpdateBroadcastReceiver);
-		Log.d(TAG, "Service died.");
+	public void connectionLost(Throwable cause) {
 	}
 
 	public void startScan() {
@@ -232,21 +208,15 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 	}
 
 	@Override
-	public void connectionLost(Throwable cause) {
-
-	}
-
-	@Override
-	public void messageArrived(String topic, MqttMessage message) throws Exception {
-
+	public void messageArrived(String topic, MqttMessage message) {
 	}
 
 	@Override
 	public void deliveryComplete(IMqttDeliveryToken token) {
-
 	}
 
 	public static class LazyHolder {
 		public static BluetoothLeService INSTANCE;
 	}
+
 }
