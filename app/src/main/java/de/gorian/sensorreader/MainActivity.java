@@ -1,12 +1,20 @@
 package de.gorian.sensorreader;
 
 import android.Manifest;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,20 +22,60 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
+import androidx.preference.PreferenceManager;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
+
+import java.util.Locale;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
 
 	public static String TAG;
 	private AppBarConfiguration mAppBarConfiguration;
 	private BluetoothLeService bluetoothLeService;
+	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+
+			Log.d(TAG, "Main Broadcast received.");
+			updateDevicesList();
+			LinearLayout devicesList = findViewById(R.id.devices_list);
+			for (int ii = 0; ii < devicesList.getChildCount(); ii++) {
+				View sensorCard = devicesList.getChildAt(ii);
+				TextView macTextField = sensorCard.findViewById(R.id.sensor_mac);
+				Log.d(TAG, macTextField.getText().toString().replace(":", "") + " <--> " + intent.getExtras().getString(BluetoothLeService.ADDRESS));
+				if (macTextField.getText().toString().replace(":", "").equals(Objects.requireNonNull(intent.getExtras()).getString(BluetoothLeService.ADDRESS))) {
+					TextView temperatureTextField = sensorCard.findViewById(R.id.temperature);
+					Double temperature = (Double) intent.getExtras().get(BluetoothLeService.TEMPERATURE);
+					if (temperature != null)
+						temperatureTextField.setText(getResources().getString(R.string.temperature_template, String.format(Locale.GERMANY, "%2.1f", temperature)));
+					TextView humidityTextField = sensorCard.findViewById(R.id.humidity);
+					Double humidity = (Double) intent.getExtras().get(BluetoothLeService.HUMIDITY);
+					if (humidity != null)
+						humidityTextField.setText(getResources().getString(R.string.humidity_template, String.format(Locale.GERMANY, "%2.1f", humidity)));
+					return;
+				}
+			}
+			Fragment frg = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
+			if (frg != null) {
+				final FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+				ft.detach(frg);
+				ft.attach(frg);
+				ft.commit();
+			}
+
+		}
+	};
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +97,8 @@ public class MainActivity extends AppCompatActivity {
 		NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
 		NavigationUI.setupWithNavController(navigationView, navController);
 
+		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+
 		// start bluetooth service
 		startService(new Intent(this, BluetoothLeService.class));
 
@@ -66,6 +116,18 @@ public class MainActivity extends AppCompatActivity {
 
 	}
 
+	protected void onStart() {
+		super.onStart();
+		LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver,
+				new IntentFilter(BluetoothLeService.SENSOR_UPDATE_ACTION)
+		);
+	}
+
+	@Override
+	protected void onStop() {
+		LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+		super.onStop();
+	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -139,6 +201,29 @@ public class MainActivity extends AppCompatActivity {
 //			Log.i(TAG, "Suche nach BLE Geräten beendet.");
 //			AsyncTask.execute(this::stopScan);
 //		}, BluetoothLeService.BLE_SEARCH_INTERVAL_MS);
+	}
+
+	private void updateDevicesList() {
+
+		Navigation.findNavController(this, R.id.nav_host_fragment).navigate(R.id.nav_sensors);
+
+		LinearLayout devicesList = findViewById(R.id.devices_list);
+		devicesList.removeAllViews();
+		for (BluetoothDevice device : bluetoothLeService.getConnectedDevices()) {
+			Log.d(TAG, "Creating device card for " + device.getName() + " " + device.getAddress());
+			View sensorCard = LayoutInflater.from(MainActivity.this).inflate(R.layout.sensor_element, devicesList);
+			TextView nameTextField = sensorCard.findViewById(R.id.sensor_name);
+			nameTextField.setText(device.getName());
+			TextView macTextField = sensorCard.findViewById(R.id.sensor_mac);
+			macTextField.setText(device.getAddress());
+//			devicesList.addView(sensorCard);
+
+			// TODO: add enable/disable logging preference for switch
+
+			// TODO: add onClick Listener on info button and display a popup
+
+		}
+
 	}
 
 

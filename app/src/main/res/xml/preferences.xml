@@ -1,35 +1,51 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <EditTextPreferenceCompat
-        android:id="@+id/mqtt_server"
+    <SwitchPreferenceCompat
+        android:id="@+id/publish_data"
+        android:defaultValue="true"
+        android:enabled="true"
+        android:saveEnabled="true"
+        app:defaultValue="true"
+        app:enabled="true"
+        app:key="publish_data"
+        app:title="Publish sensor readings over MQTT" />
+    <EditTextPreference
+        android:id="@+id/server_uri"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:defaultValue="tcp://127.0.0.1:1883"
-        android:key="mqtt_server"
+        android:key="server_uri"
+        app:defaultValue="tcp://127.0.0.1:1883"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="MQTT Server"
         app:icon="@drawable/server"
         app:summary="tcp://127.0.0.1:1883" />
-    <EditTextPreferenceCompat
+    <EditTextPreference
         android:id="@+id/client_id"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:defaultValue="@string/app_name"
+        android:defaultValue="SensorReader"
+        app:defaultValue="SensorReader"
         android:key="client_id"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="Client ID"
         app:icon="@drawable/phone_info"
-        app:summary="@string/app_name" />
-    <SwitchPreferenceCompat
-        app:key="notifications"
-        app:title="Enable message notifications" />
+        app:summary="SensorReader" />
+    <EditTextPreference
+        android:id="@+id/publish_topic_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:defaultValue="SensorReader"
+        android:key="publish_topic_header"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Topic Header"
+        app:defaultValue="SensorReader"
+        app:icon="@drawable/short_text"
+        app:summary="SensorReader" />
 
-    <Preference
-        app:key="feedback"
-        app:summary="Report technical issues or suggest new features"
-        app:title="Send feedback" />
 
 </PreferenceScreen>

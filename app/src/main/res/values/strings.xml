@@ -15,6 +15,9 @@
     <string name="default_mac">00:00:00:00:00</string>
     <string name="default_name">MJ_HT_V1</string>
     <string name="default_temp">25,2 °C</string>
+    <string name="temperature_template">%1$s °C</string>
+    <string name="humidity_template">%1$s %%</string>
+    <string name="battery_template">%1$s %%</string>
     <string name="humidity_icon_name">humidity icon</string>
     <string name="temperature_icon_name">temperature icon</string>
     <string name="default_humidity">43,2 %</string>

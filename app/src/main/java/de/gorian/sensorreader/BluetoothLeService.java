@@ -30,15 +30,21 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class BluetoothLeService extends Service implements BluetoothProfile, MqttCallback {
 
-	public final static String EXTRA_DATA = "com.example.bluetooth.le.EXTRA_DATA";
+	public final static String TEMPERATURE = "de.gorian.sensorreader.TEMPERATURE";
+	public final static String HUMIDITY = "de.gorian.sensorreader.HUMIDITY";
+	public final static String BATTERY = "de.gorian.sensorreader.BATTERY";
+	public final static String ADDRESS = "de.gorian.sensorreader.ADDRESS";
 	private final static String READ_SENSOR_WORKER_TAG = "ReadSensor";
 	private final static String TAG = BluetoothLeService.class.getSimpleName();
-	private static final String SENSOR_UPDATE_ACTION = "de.gorian.sensorReader.MIJIA_DATA_RECEIVED";
+	public static final String SENSOR_UPDATE_ACTION = "de.gorian.sensorReader.MIJIA_DATA_RECEIVED";
+	Set<BluetoothDevice> devices = new HashSet<>();
 	// Various callback methods defined by the BLE API.
 	private ScanCallback leScanCallback =
 			new ScanCallback() {
@@ -50,10 +56,11 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 //					Log.i(TAG, "New BLE device found: " + device.getName() + " " + device.getAddress());
 					if (device.getName() != null && device.getName().contains("MJ_HT_V1")) {
 
+						devices.add(device);
 						try {
 							Collection<byte[]> scanData = Objects.requireNonNull(result.getScanRecord()).getServiceData().values();
 							for (byte[] aByteSet : scanData) {
-								BluetoothLeService.this.broadcastUpdate(aByteSet);
+								BluetoothLeService.this.broadcastUpdate(aByteSet, device);
 							}
 
 						} catch (NullPointerException ignored) {
@@ -61,6 +68,7 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 
 
 						// TODO: update UI
+
 					}
 				}
 			};
@@ -81,7 +89,7 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 
 	@Override
 	public List<BluetoothDevice> getConnectedDevices() {
-		return null;
+		return new ArrayList<>(devices);
 	}
 
 	@Override
@@ -90,8 +98,9 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		LazyHolder.INSTANCE = this;
 		initBTLE();
 		this.sensorUpdateBroadcastReceiver = new SensorUpdateBroadcastReceiver();
-		this.sensorUpdateBroadcastReceiver.createClient(this);
-		this.sensorUpdateBroadcastReceiver.connect(this);
+		this.sensorUpdateBroadcastReceiver.setContext(this);
+		this.sensorUpdateBroadcastReceiver.createClient();
+		this.sensorUpdateBroadcastReceiver.connect();
 		LocalBroadcastManager.getInstance(this).registerReceiver(this.sensorUpdateBroadcastReceiver, new IntentFilter(SENSOR_UPDATE_ACTION));
 	}
 
@@ -118,17 +127,48 @@ public class BluetoothLeService extends Service implements BluetoothProfile, Mqt
 		return BluetoothProfile.STATE_CONNECTED;
 	}
 
-	private void broadcastUpdate(final byte[] data) {
+	private void broadcastUpdate(final byte[] rawData, BluetoothDevice device) {
 
-		final Intent intent = new Intent(BluetoothLeService.SENSOR_UPDATE_ACTION);
-
+		Log.d(TAG, "RAW DATA: " + Arrays.toString(rawData));
 		// write the data formatted in HEX.
-		if (data != null && data.length > 6) {
-			final StringBuilder stringBuilder = new StringBuilder(data.length);
-			for (byte byteChar : data)
+		if (rawData != null && rawData.length > 6) {
+			final StringBuilder stringBuilder = new StringBuilder(rawData.length);
+			for (byte byteChar : rawData) {
 				stringBuilder.append(String.format("%02X ", byteChar));
-			intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+			}
 			Log.d(TAG, "Sensor update broadcasted: " + stringBuilder.toString());
+			String[] hexBytes = stringBuilder.toString().split(" ");
+			Integer battery = null;
+			Double temperature = null;
+			Double humidity = null;
+			try {
+				if (hexBytes.length < 12) return;
+
+				int[] data = new int[hexBytes.length];
+				for (int ii = 0; ii < hexBytes.length; ii++) {
+					data[ii] = Integer.parseInt(hexBytes[ii], 16);
+				}
+				switch (data[11]) {
+					case 0x06: //humidity
+						humidity = data[14] / 10.d + (data[15] * 16 * 16) / 10.d;
+						break;
+					case 0x0D: //temp + humidity
+						humidity = data[16] / 10.d + data[17] * 16 * 16 / 10.d;
+					case 0x04: //temp
+						temperature = data[14] / 10.d + data[15] * 16 * 16 / 10.d;
+						break;
+					case 0x0A: //battery
+						battery = data[14];
+						break;
+				}
+			} catch (ArrayIndexOutOfBoundsException e) {
+				e.printStackTrace();
+			}
+			final Intent intent = new Intent(BluetoothLeService.SENSOR_UPDATE_ACTION);
+			intent.putExtra(TEMPERATURE, temperature);
+			intent.putExtra(HUMIDITY, humidity);
+			intent.putExtra(BATTERY, battery);
+			intent.putExtra(ADDRESS, device.getAddress().replace(":", ""));
 			LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 		}
 	}
